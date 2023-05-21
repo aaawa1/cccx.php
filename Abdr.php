@@ -1,4 +1,20 @@
 <?php
+function email(){
+$name = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz0123456789'),1,6);
+$ch = curl_init();
+curl_setopt_array($ch,array(
+CURLOPT_POST => 1,
+CURLOPT_URL => 'https://api.internal.temp-mail.io/api/v3/email/new',
+CURLOPT_RETURNTRANSFER => true,
+CURLOPT_HTTPHEADER => ['User-Agent: '.$useragent],
+CURLOPT_POSTFIELDS => "name=$name&domain=greencafe24.com",
+CURLOPT_ENCODING => "gzip"
+));
+$result = curl_exec($ch);
+$result = json_decode($result,true);
+$email = $result['email'];
+return $email;
+}
 function uuid(){
     $uuid = sprintf(
         '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
@@ -70,24 +86,71 @@ function useragent() {
             break;
     }
 }
-$token = readline(' 6008851331:AAHOA1E_9IXxyLAITiyyNZjd9xBz4GHMAaY : ');
-$id = readline(' 5424942662 : ');
+$token = "000"; // توكن
+define("API_KEY",$token);
+$web = file_get_contents("https://api.telegram.org/bot".API_KEY."/setwebhook?url=https://".$_SERVER['HTTP_HOST'].$_SERVER['PHP_SELF']);
+$web = print_r($web);
+function bot($method,$datas=[]){
+    $url = "https://api.telegram.org/bot".API_KEY."/".$method;
+    $ch = curl_init();
+    curl_setopt($ch,CURLOPT_URL,$url);
+    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+    curl_setopt($ch,CURLOPT_POSTFIELDS,$datas);
+    $res = curl_exec($ch);
+    if(curl_error($ch)){
+        var_dump(curl_error($ch));
+    }else{
+        return json_decode($res);
+    }
+}
+$update = json_decode(file_get_contents("php://input"));
+$message = $update->message;
+$text = $message->text; 
+$data = $update->callback_query->data; 
+$user = $update->message->from->username; 
+$user2 = $update->callback_query->from->username; 
+$name = $update->message->from->first_name; 
+$name2 = $update->callback_query->from->first_name; 
+$message_id = $message->message_id;
+$message_id2 = $update->callback_query->message->message_id; 
+$chat_id = $message->chat->id; 
+$chat_id2 = $update->callback_query->message->chat->id; 
+$from_id = $message->from->id;
+$from_id2 = $update->callback_query->message->from->id; 
+$type = $update->message->chat->type;
+$admin = 1315011160; // ايديك
+if($text == '/start' and $from_id == $admin){
+bot('sendMessage',[
+'chat_id'=>$chat_id,
+'text'=>"
+• اهلا بك عزيزي في بوت صنع حسابات انستجرام
+• اضغط علي صنع حساب و انتظر المعلومات
+
+ملحوظه بعض الإيميلات محظوره اذا دومين الإيميل اوله popcorn رح يشتغل معك
+",
+'reply_markup'=>json_encode([
+'inline_keyboard'=>[
+[['text'=>'صنع حساب','callback_data'=>'make']],
+]
+])
+]);
+}
+if($data == 'make'){
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"
+جاري صنع الحساب قد يستغرق الامر بعض الوقت
+",
+]);
+sleep(2);
 $useragent = useragent();
 $uuid = uuid();
-$name = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz0123456789'),1,6);
-$ch = curl_init();
-curl_setopt_array($ch,array(
-CURLOPT_POST => 1,
-CURLOPT_URL => 'https://api.internal.temp-mail.io/api/v3/email/new',
-CURLOPT_RETURNTRANSFER => true,
-CURLOPT_HTTPHEADER => ['User-Agent: '.$useragent],
-CURLOPT_POSTFIELDS => "name=$name&domain=greencafe24.com",
-CURLOPT_ENCODING => "gzip"
-));
-$result = curl_exec($ch);
-$result = json_decode($result,true);
-$email = $result['email'];
-print("Done Create Email : $email\n");
+$email = email();
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"تم صنع الإيميل : $email",
+'parse_mode'=>'markdown',
+]);
 $ch = curl_init();
 curl_setopt_array($ch,array(
 CURLOPT_POST => 1,
@@ -118,11 +181,23 @@ CURLOPT_ENCODING => "gzip"
 ));
 $result = curl_exec($ch);
 if(strpos($result,'"invalid_email"')){
-print("Failed To Register Email\n");
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"فشل في تسجيل الإيميل",
+'parse_mode'=>'markdown',
+]);
 } elseif(strpos($result,'"email_is_taken"')){
-print("Failed To Register Email\n");
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"فشل في تسجيل الإيميل",
+'parse_mode'=>'markdown',
+]);
 } else {
-print("Done Register Email\n");
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"تم تسجيل الإيميل",
+'parse_mode'=>'markdown',
+]);
 $ch = curl_init();
 curl_setopt_array($ch,array(
 CURLOPT_POST => 1,
@@ -152,7 +227,11 @@ CURLOPT_POSTFIELDS => 'device_id='.$uuid.'&email='.$email,
 CURLOPT_ENCODING => "gzip"
 ));
 $result = json_decode(curl_exec($ch),true);
-print("Plz Wait A Few Seconds To Get Code\n");
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"جاري التقاط كود التفعيل الرجاء الانتظار",
+'parse_mode'=>'markdown',
+]);
 while(true){
 $msg = file_get_contents('https://api.internal.temp-mail.io/api/v3/email/'.$email.'/messages');
 if(!strpos($msg,'is your Instagram code')){
@@ -191,10 +270,21 @@ CURLOPT_ENCODING => "gzip"
 ));
 $result = curl_exec($ch);
 if(strpos($result,'"invalid_nonce"')){
-print("Failed To Get Code !\n");
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"فشل في التقاط كود التفعيل",
+'parse_mode'=>'markdown',
+]);
 exit();
 } else {
-print("Done Get Code : $code, Plz Wait To Register\n");
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"
+تم التقاط كود التفعيل : `$code`
+جاري تسجيل الدخول
+",
+'parse_mode'=>'markdown',
+]);
 $sign_code = json_decode($result,true);
 $signup_code = $sign_code['signup_code'];
 $ch = curl_init();
@@ -261,8 +351,6 @@ $result = curl_exec($ch);
 $result = json_decode($result,true);
 $account_created = $result['account_created'];
 if($account_created == false){
-print("Failed To Create ×\n");
-print("Done Send Info To Bot √\n");
 $text = "
 Failed Create Account ❌.
 -----------------------
@@ -271,14 +359,16 @@ Failed Create Account ❌.
 .+. Username : `$username`
 .+. Password : `$password`
 -----------------------
-~ BY : - @LLLEA
+~ BY : - @SuPeRx1
 ";
-file_get_contents('https://api.telegram.org/bot'.$token.'/sendMessage?'.http_build_query(['chat_id'=>$id,'text'=>$text,'parse_mode'=>'markdown']));
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>$text,
+'parse_mode'=>'markdown',
+]);
 exit();
 } else {
 $user_id = $result['user_id'];
-print("Done Create Account √\n");
-print("Done Send Info To Bot √\n");
 $text = "
 Done Create Account ✅.
 -----------------------
@@ -288,13 +378,187 @@ Done Create Account ✅.
 .+. Password : `$password`
 .+. User Id : `$user_id`
 -----------------------
-~ BY : - @LLLEA
+~ BY : - @SuPeRx1
 ";
-file_get_contents('https://api.telegram.org/bot'.$token.'/sendMessage?'.http_build_query(['chat_id'=>$id,'text'=>$text,'parse_mode'=>'markdown']));
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>$text,
+'parse_mode'=>'markdown',
+]);
 exit();
 }
 }
 }
 }
 }
+}
 ?>
+'x-csrftoken: j96SeMj4NKEfNJKJy90QCVtdzzJoxsW9',
+'sec-ch-ua-platform: "Android"',
+'origin: https://www.instagram.com',
+'sec-fetch-site: same-origin',
+'sec-fetch-mode: cors',
+'sec-fetch-dest: empty',
+'referer: https://www.instagram.com/accounts/signup/email',
+'accept-language: ar-AE,ar;q=0.9,en-US;q=0.8,en;q=0.7,de-DE;q=0.6,de;q=0.5',
+'cookie: mid='.$uuid.'; ig_did=BEB7DE0C-FD7B-4ABB-A6C1-8A522CEA34DC; ig_nrcb=1; rur="ODN\05451273161851\0541674635965:01f749259149d7fc638b9dbf998ece53c89d114a9b04a016ba9e68aaf8f80789e73c4571"; csrftoken=j96SeMj4NKEfNJKJy90QCVtdzzJoxsW9'),
+CURLOPT_POSTFIELDS => 'email='.urlencode($email),
+CURLOPT_ENCODING => "gzip"
+));
+$result = curl_exec($ch);
+if(strpos($result,'"invalid_email"')){
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"فشل في تسجيل الإيميل",
+'parse_mode'=>'markdown',
+]);
+} elseif(strpos($result,'"email_is_taken"')){
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"فشل في تسجيل الإيميل",
+'parse_mode'=>'markdown',
+]);
+} else {
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>"تم تسجيل الإيميل",
+'parse_mode'=>'markdown',
+]);
+$ch = curl_init();
+curl_setopt_array($ch,array(
+CURLOPT_POST => 1,
+CURLOPT_URL => 'https://i.instagram.com/api/v1/accounts/send_verify_email/',
+CURLOPT_RETURNTRANSFER => true,
+CURLOPT_HTTPHEADER => array(
+'authority: i.instagram.com',
+'sec-ch-ua: " Not A;Brand";v="99", "Chromium";v="96"',
+'x-ig-app-id: 1217981644879628',
+'x-ig-www-claim: hmac.AR3YttfYQWMo4aCfHJfmrEMByM6aqjmE8P-5m67nwiMgJkYH',
+'sec-ch-ua-mobile: ?1',
+'x-instagram-ajax: d82a8b39058f',
+'content-type: application/x-www-form-urlencoded',
+'accept: */*',
+'user-agent: Mozilla/5.0 (Linux; Android 11; SM-A217F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.46 Mobile Safari/537.36',
+'x-asbd-id: 198387',
+'x-csrftoken: j96SeMj4NKEfNJKJy90QCVtdzzJoxsW9',
+'sec-ch-ua-platform: "Android"',
+'origin: https://www.instagram.com',
+'sec-fetch-site: same-site',
+'sec-fetch-mode: cors',
+'sec-fetch-dest: empty',
+'referer: https://www.instagram.com/',
+'accept-language: ar-AE,ar;q=0.9,en-US;q=0.8,en;q=0.7,de-DE;q=0.6,de;q=0.5',
+'cookie: mid='.$uuid.'; ig_did=BEB7DE0C-FD7B-4ABB-A6C1-8A522CEA34DC; ig_nrcb=1; rur="ODN\05451273161851\0541674635965:01f749259149d7fc638b9dbf998ece53c89d114a9b04a016ba9e68aaf8f80789e73c4571"; csrftoken=j96SeMj4NKEfNJKJy90QCVtdzzJoxsW9'),
+CURLOPT_POSTFIELDS => 'device_id='.$uuid.'&email='.$email,
+CURLOPT_ENCODING => "gzip"
+));
+$result = json_decode(curl_exec($ch),true);
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+nup_code'];
+$ch = curl_init();
+curl_setopt_array($ch,array(
+CURLOPT_POST => 1,
+CURLOPT_URL => 'https://www.instagram.com/web/consent/check_age_eligibility/',
+CURLOPT_RETURNTRANSFER => true,
+CURLOPT_HTTPHEADER => array('authority: www.instagram.com',
+'sec-ch-ua: " Not A;Brand";v="99", "Chromium";v="96"',
+'x-ig-app-id: 1217981644879628',
+'x-ig-www-claim: 0',
+'sec-ch-ua-mobile: ?1',
+'x-instagram-ajax: d82a8b39058f',
+'content-type: application/x-www-form-urlencoded',
+'accept: */*',
+'x-requested-with: XMLHttpRequest',
+'x-asbd-id: 198387',
+'user-agent: Mozilla/5.0 (Linux; Android 11; SM-A217F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.46 Mobile Safari/537.36',
+'x-csrftoken: UKmDDrtCDo3XIPWf0PUE2MVHwcokkDat',
+'sec-ch-ua-platform: "Android"',
+'origin: https://www.instagram.com',
+'sec-fetch-site: same-origin',
+'sec-fetch-mode: cors',
+'sec-fetch-dest: empty',
+'referer: https://www.instagram.com/accounts/signup/birthday',
+'accept-language: ar-AE,ar;q=0.9,en-US;q=0.8,en;q=0.7,de-DE;q=0.6,de;q=0.5',
+'cookie: mid='.$uuid.'; ig_did=BEB7DE0C-FD7B-4ABB-A6C1-8A522CEA34DC; ig_nrcb=1; csrftoken=UKmDDrtCDo3XIPWf0PUE2MVHwcokkDat; ig_gdpr_signup=%7B%22count%22%3A1%2C%22timestamp%22%3A1643112064565%7D'),
+CURLOPT_POSTFIELDS => 'day=20&month=11&year=1996',
+CURLOPT_ENCODING => "gzip"
+));
+$result = curl_exec($ch);
+$password = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz0123456789'),1,8);
+$username = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz0123456789'),1,7);
+$first_name = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz0123456789'),1,6);
+$ch = curl_init();
+curl_setopt_array($ch,array(
+CURLOPT_POST => 1,
+CURLOPT_URL => 'https://www.instagram.com/accounts/web_create_ajax/',
+CURLOPT_RETURNTRANSFER => true,
+CURLOPT_HTTPHEADER => array('authority: www.instagram.com',
+'sec-ch-ua: " Not A;Brand";v="99", "Chromium";v="96"',
+'x-ig-app-id: 1217981644879628',
+'x-ig-www-claim: hmac.AR3v83slgpGfIK_bEpuCItxMgBy1y426AcqAisb9UaZX6nbd',
+'sec-ch-ua-mobile: ?1',
+'x-instagram-ajax: 31da6d1b025b',
+'content-type: application/x-www-form-urlencoded',
+'accept: */*',
+'x-requested-with: XMLHttpRequest',
+'x-asbd-id: 198387',
+'user-agent: Mozilla/5.0 (Linux; Android 11; SM-A217F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.46 Mobile Safari/537.36',
+'x-csrftoken: QCaVNN83zI2xvZvoocMsfHqEJSlsdjfU',
+'sec-ch-ua-platform: "Android"',
+'origin: https://www.instagram.com',
+'sec-fetch-site: same-origin',
+'sec-fetch-mode: cors',
+'sec-fetch-dest: empty',
+'referer: https://www.instagram.com/accounts/signup/username',
+'accept-language: ar-AE,ar;q=0.9,en-US;q=0.8,en;q=0.7,de-DE;q=0.6,de;q=0.5',
+'cookie: mid='.$uuid.'; ig_did=BEB7DE0C-FD7B-4ABB-A6C1-8A522CEA34DC; ig_nrcb=1; rur="CLN\05451297125343\0541674684111:01f7f242288bdab03791a265216076ac9b1703382c58fbe8d76e9186ccfd387e1ae63913"; csrftoken=QCaVNN83zI2xvZvoocMsfHqEJSlsdjfU'),
+CURLOPT_POSTFIELDS => 'enc_password=#PWD_INSTAGRAM_BROWSER:0:'.time().':'.$password.'&email='.$email.'&username='.$username.'&first_name='.$first_name.'&month=10&day=20&year=1997&client_id='.$uuid.'&seamless_login_enabled=1&tos_version=row&force_sign_up_code='.$signup_code,
+CURLOPT_ENCODING => "gzip"
+));
+$result = curl_exec($ch);
+$result = json_decode($result,true);
+$account_created = $result['account_created'];
+if($account_created == false){
+$text = "
+Failed Create Account ❌.
+-----------------------
+.+. First Name : *$first_name*
+.+. Email : $email
+.+. Username : `$username`
+.+. Password : `$password`
+-----------------------
+~ BY : - @SuPeRx1
+";
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>$text,
+'parse_mode'=>'markdown',
+]);
+exit();
+} else {
+$user_id = $result['user_id'];
+$text = "
+Done Create Account ✅.
+-----------------------
+.+. First Name : *$first_name*
+.+. Email : $email
+.+. Username : `$username`
+.+. Password : `$password`
+.+. User Id : `$user_id`
+-----------------------
+~ BY : - @SuPeRx1
+";
+bot('sendMessage',[
+'chat_id'=>$chat_id2,
+'text'=>$text,
+'parse_mode'=>'markdown',
+]);
+exit();
+}
+}
+}
+}
+}
+}
+?
