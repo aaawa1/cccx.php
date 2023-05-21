@@ -271,7 +271,7 @@ Failed Create Account ❌.
 .+. Username : `$username`
 .+. Password : `$password`
 -----------------------
-~ BY : - @SuPeRx1
+~ BY : - @LLLEA
 ";
 file_get_contents('https://api.telegram.org/bot'.$token.'/sendMessage?'.http_build_query(['chat_id'=>$id,'text'=>$text,'parse_mode'=>'markdown']));
 exit();
@@ -288,7 +288,7 @@ Done Create Account ✅.
 .+. Password : `$password`
 .+. User Id : `$user_id`
 -----------------------
-~ BY : - @SuPeRx1
+~ BY : - @LLLEA
 ";
 file_get_contents('https://api.telegram.org/bot'.$token.'/sendMessage?'.http_build_query(['chat_id'=>$id,'text'=>$text,'parse_mode'=>'markdown']));
 exit();
